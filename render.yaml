@@ -1,0 +1,15 @@
+# Render Blueprint – MailThreat Analyzer
+# In Dashboard, add env: SECRET_KEY, RENDER_EXTERNAL_URL (see DEPLOY_RENDER.md)
+
+services:
+  - type: web
+    name: mailthreat-analyzer
+    runtime: python
+    region: oregon
+
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT web_backend:app
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.0"

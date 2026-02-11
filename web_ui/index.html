@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MailThreat Analyzer - Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Sidebar Navigation -->
+    <div class="sidebar">
+        <div class="logo">
+            <i class="fas fa-shield-virus"></i>
+            <h2>MailThreat Analyzer</h2>
+        </div>
+        
+        <nav class="nav-menu">
+            <a href="#" class="nav-item active" data-page="dashboard">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="#" class="nav-item" data-page="flagged">
+                <i class="fas fa-flag"></i>
+                <span>Flagged Emails</span>
+            </a>
+            <a href="#" class="nav-item" data-page="reports">
+                <i class="fas fa-file-alt"></i>
+                <span>Reports</span>
+            </a>
+            <a href="#" class="nav-item" data-page="whitelist">
+                <i class="fas fa-check-circle"></i>
+                <span>Whitelist</span>
+            </a>
+            <a href="#" class="nav-item" data-page="settings">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+            </a>
+            <a href="#" class="nav-item" data-page="profile">
+                <i class="fas fa-user-edit"></i>
+                <span>Profile</span>
+            </a>
+            <a href="#" class="nav-item" data-page="scanHistory">
+                <i class="fas fa-history"></i>
+                <span>Scan History</span>
+            </a>
+            <a href="#" class="nav-item" data-page="securityTips">
+                <i class="fas fa-shield-alt"></i>
+                <span>Security Tips</span>
+            </a>
+        </nav>
+        
+        <a href="#" class="user-profile" id="userProfileLink" data-page="profile" title="Edit profile">
+            <div class="profile-avatar">
+                <i class="fas fa-user"></i>
+            </div>
+            <div class="profile-info">
+                <p class="profile-name" id="userName">User Name</p>
+                <p class="profile-email" id="userEmail">user@email.com</p>
+            </div>
+        </a>
+        
+        <button class="logout-btn" id="logoutBtn" onclick="handleLogout(); return false;">
+            <i class="fas fa-sign-out-alt"></i>
+            <span>Logout</span>
+        </button>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <h1 id="pageTitle">Dashboard</h1>
+                <p class="header-subtitle">Real-time email threat monitoring</p>
+            </div>
+            <div class="header-right">
+                <button class="btn-scan" id="scanNowBtn" title="Scan inbox (Ctrl+S or ⌘S)">
+                    <i class="fas fa-sync-alt"></i>
+                    Scan Now
+                </button>
+                <div class="notification-icon">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-badge">3</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Dashboard Page -->
+        <div class="page-content" id="dashboardPage">
+            <!-- Gmail connection status & detection badge -->
+            <div class="dashboard-status-bar">
+                <div class="gmail-status" id="gmailStatusCard">
+                    <i class="fas fa-envelope"></i>
+                    <span id="gmailStatusText">Checking…</span>
+                </div>
+                <div class="detection-badge">
+                    <i class="fas fa-brain"></i>
+                    <span>NLP + ML threat detection</span>
+                </div>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card gradient-purple">
+                    <div class="stat-icon">
+                        <i class="fas fa-envelope"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="totalScanned">0</h3>
+                        <p>Total Scanned</p>
+                    </div>
+                </div>
+                
+                <div class="stat-card gradient-red">
+                    <div class="stat-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="threatsDetected">0</h3>
+                        <p>Threats Detected</p>
+                    </div>
+                </div>
+                
+                <div class="stat-card gradient-green">
+                    <div class="stat-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="threatsBlocked">0</h3>
+                        <p>Threats Blocked</p>
+                    </div>
+                </div>
+                
+                <div class="stat-card gradient-blue">
+                    <div class="stat-icon">
+                        <i class="fas fa-percentage"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="threatRate">0%</h3>
+                        <p>Threat Rate</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts and Recent Activity -->
+            <div class="content-grid">
+                <!-- Threat Level Chart -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Protection Status</h3>
+                        <button class="btn-icon">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="protection-status">
+                            <div class="protection-circle">
+                                <svg viewBox="0 0 200 200">
+                                    <circle cx="100" cy="100" r="80" class="circle-bg"></circle>
+                                    <circle cx="100" cy="100" r="80" class="circle-progress" id="protectionCircle"></circle>
+                                </svg>
+                                <div class="circle-text">
+                                    <h2 id="protectionScore">95%</h2>
+                                    <p>Protected</p>
+                                </div>
+                            </div>
+                            <div class="protection-details">
+                                <div class="detail-item">
+                                    <span class="detail-label">Sensitivity Level:</span>
+                                    <span class="detail-value" id="sensitivityLevel">Medium</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Auto-Flag:</span>
+                                    <span class="detail-value" id="autoFlagStatus">Enabled</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Last Scan:</span>
+                                    <span class="detail-value" id="lastScanTime">2 minutes ago</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Threats -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Recent Threats</h3>
+                        <a href="#" class="view-all" data-page="flagged">View All</a>
+                    </div>
+                    <div class="card-body">
+                        <div class="threats-list" id="recentThreatsList">
+                            <!-- Threats will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Flagged Emails Page -->
+        <div class="page-content hidden" id="flaggedPage">
+            <div class="card full-width">
+                <div class="card-header">
+                    <h3>Flagged Emails</h3>
+                    <div class="filter-controls">
+                        <select class="filter-select" id="threatFilter">
+                            <option value="all">All Threats</option>
+                            <option value="phishing">Phishing</option>
+                            <option value="spam">Spam</option>
+                            <option value="malware">Malware</option>
+                        </select>
+                        <input type="text" class="search-input" placeholder="Search emails..." id="searchInput">
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="email-list" id="flaggedEmailsList">
+                        <!-- Flagged emails will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reports Page -->
+        <div class="page-content hidden" id="reportsPage">
+            <div class="reports-grid">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Threat Analysis Report</h3>
+                        <button class="btn-primary">
+                            <i class="fas fa-download"></i>
+                            Export
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="report-summary">
+                            <div class="report-item">
+                                <div class="report-label">Total Emails Analyzed</div>
+                                <div class="report-value" id="reportTotalEmails">0</div>
+                            </div>
+                            <div class="report-item">
+                                <div class="report-label">Phishing Attempts</div>
+                                <div class="report-value danger" id="reportPhishing">0</div>
+                            </div>
+                            <div class="report-item">
+                                <div class="report-label">Spam Detected</div>
+                                <div class="report-value warning" id="reportSpam">0</div>
+                            </div>
+                            <div class="report-item">
+                                <div class="report-label">Clean Emails</div>
+                                <div class="report-value success" id="reportClean">0</div>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-container">
+                            <canvas id="threatChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Weekly Activity</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="activity-timeline" id="activityTimeline">
+                            <!-- Activity items will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Whitelist Page -->
+        <div class="page-content hidden" id="whitelistPage">
+            <div class="card full-width">
+                <div class="card-header">
+                    <h3>Trusted Senders (Whitelist)</h3>
+                    <button class="btn-primary" id="addWhitelistBtn">
+                        <i class="fas fa-plus"></i>
+                        Add Sender
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="whitelist-grid" id="whitelistGrid">
+                        <!-- Whitelist items will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="card full-width">
+                <div class="card-header">
+                    <h3>Blocked Senders (Blacklist)</h3>
+                    <button class="btn-primary" id="addBlacklistBtn">
+                        <i class="fas fa-plus"></i>
+                        Add Sender
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="blacklist-grid" id="blacklistGrid">
+                        <!-- Blacklist items will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Page -->
+        <div class="page-content hidden" id="settingsPage">
+            <div class="settings-grid">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Detection Settings</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <label for="threatThreshold">Threat Sensitivity</label>
+                                <p class="setting-description">Higher sensitivity detects more threats but may flag legitimate emails</p>
+                            </div>
+                            <div class="setting-control">
+                                <input type="range" id="threatThreshold" min="0" max="100" value="60" class="slider">
+                                <span class="slider-value" id="thresholdValue">60%</span>
+                            </div>
+                        </div>
+
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <label for="autoFlag">Auto-Flag Threats</label>
+                                <p class="setting-description">Automatically flag detected threats</p>
+                            </div>
+                            <div class="setting-control">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="autoFlag" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <label for="notifications">Email Notifications</label>
+                                <p class="setting-description">Receive alerts when threats are detected</p>
+                            </div>
+                            <div class="setting-control">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="notifications" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <button class="btn-primary full-width" id="saveSettingsBtn">
+                            <i class="fas fa-save"></i>
+                            Save Settings
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Account Information</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="account-info">
+                            <div class="info-item">
+                                <span class="info-label">Display Name:</span>
+                                <span class="info-value" id="settingsDisplayName">User Name</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Email:</span>
+                                <span class="info-value" id="settingsEmail">user@email.com</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Member Since:</span>
+                                <span class="info-value" id="memberSince">—</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Protection Status:</span>
+                                <span class="info-value success">Active</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Gmail Status:</span>
+                                <span class="info-value" id="gmailStatus">Not Connected</span>
+                            </div>
+                        </div>
+                        
+                        <button class="btn-primary full-width" id="changeNameBtn" style="margin-top: 15px;">
+                            <i class="fas fa-user-edit"></i>
+                            Change Display Name
+                        </button>
+                        
+                        <button class="btn-connect-gmail" id="connectGmailBtn">
+                            <i class="fab fa-google"></i>
+                            Connect Gmail Account
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Page -->
+        <div class="page-content hidden" id="profilePage">
+            <div class="settings-grid">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Edit Profile</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label for="profileDisplayName">Display Name</label>
+                            <input type="text" id="profileDisplayName" class="modal-input" placeholder="Your name">
+                        </div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <p class="profile-readonly" id="profileEmail">user@email.com</p>
+                        </div>
+                        <div class="form-group">
+                            <label>Member Since</label>
+                            <p class="profile-readonly" id="profileMemberSince">—</p>
+                        </div>
+                        <button class="btn-primary full-width" id="saveProfileBtn">
+                            <i class="fas fa-save"></i>
+                            Save Profile
+                        </button>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Appearance</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <label for="themeToggle">Theme</label>
+                                <p class="setting-description">Switch between light and dark mode</p>
+                            </div>
+                            <div class="setting-control">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="themeToggle">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                                <span class="theme-label" id="themeLabel">Light mode</span>
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <label>Sidebar accent</label>
+                                <p class="setting-description">Purple gradient in the sidebar</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scan History Page -->
+        <div class="page-content hidden" id="scanHistoryPage">
+            <div class="card full-width">
+                <div class="card-header">
+                    <h3>Scan History</h3>
+                    <p class="card-subtitle">Past inbox scans and threat summaries</p>
+                </div>
+                <div class="card-body">
+                    <div class="scan-history-table-wrap">
+                        <table class="scan-history-table">
+                            <thead>
+                                <tr>
+                                    <th>Date &amp; Time</th>
+                                    <th>Source</th>
+                                    <th>Emails Scanned</th>
+                                    <th>Threats Found</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="scanHistoryBody">
+                                <!-- Filled by app.js -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="scan-history-empty hidden" id="scanHistoryEmpty">No scan history yet. Run &quot;Scan Now&quot; from the dashboard to start.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Security Tips Page -->
+        <div class="page-content hidden" id="securityTipsPage">
+            <div class="security-tips-grid">
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-search"></i> How to Spot Phishing</h3>
+                    </div>
+                    <div class="card-body">
+                        <ul class="tips-list">
+                            <li>Check the sender address — real companies use their domain (e.g. @paypal.com), not @paypal-verify.tk</li>
+                            <li>Look for urgency — &quot;Act now&quot;, &quot;Your account will be closed&quot; are common tricks</li>
+                            <li>Hover over links before clicking — the real URL may be different from the text</li>
+                            <li>Watch for spelling and grammar mistakes — legitimate companies rarely send sloppy emails</li>
+                            <li>Be wary of requests for passwords, SSN, or payment details via email</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-link"></i> Safe Link Habits</h3>
+                    </div>
+                    <div class="card-body">
+                        <ul class="tips-list">
+                            <li>Type important URLs (bank, email) into the browser instead of clicking email links</li>
+                            <li>Use bookmarks for sites you use often</li>
+                            <li>Check for HTTPS and a valid padlock before entering credentials</li>
+                            <li>If in doubt, contact the company via their official website or phone number</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-cogs"></i> Using This Dashboard</h3>
+                    </div>
+                    <div class="card-body">
+                        <ul class="tips-list">
+                            <li>Run &quot;Scan Now&quot; regularly to check your inbox with ML + NLP detection</li>
+                            <li>Review &quot;Recent Threats&quot; and click any item to see full analysis and recommendations</li>
+                            <li>Add trusted senders to the Whitelist so they are not flagged</li>
+                            <li>Adjust &quot;Threat Sensitivity&quot; in Settings if you get too many or too few alerts</li>
+                            <li>Export reports from the Reports tab for your records</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Email Details -->
+    <div class="modal" id="emailModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Email Details</h3>
+                <button class="modal-close" id="closeModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="emailModalBody">
+                <!-- Email details will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay hidden" id="loadingOverlay">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Scanning emails...</p>
+        </div>
+    </div>
+
+    <!-- Add to Whitelist Modal -->
+    <div class="modal" id="addWhitelistModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Trusted Sender</h3>
+                <button class="modal-close" onclick="closeAddWhitelistModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="whitelistEmail">Email Address</label>
+                    <input type="email" id="whitelistEmail" placeholder="trusted@example.com" class="modal-input">
+                </div>
+                <button class="btn-primary full-width" onclick="submitWhitelist()">
+                    <i class="fas fa-plus"></i>
+                    Add to Whitelist
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add to Blacklist Modal -->
+    <div class="modal" id="addBlacklistModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Block Sender</h3>
+                <button class="modal-close" onclick="closeAddBlacklistModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="blacklistEmail">Email Address</label>
+                    <input type="email" id="blacklistEmail" placeholder="spam@example.com" class="modal-input">
+                </div>
+                <div class="form-group">
+                    <label for="blacklistReason">Reason (Optional)</label>
+                    <textarea id="blacklistReason" placeholder="Why are you blocking this sender?" class="modal-textarea" rows="3"></textarea>
+                </div>
+                <button class="btn-primary full-width" onclick="submitBlacklist()">
+                    <i class="fas fa-ban"></i>
+                    Add to Blacklist
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connect Gmail / Verify Email Access Modal (shown after email login when Gmail not connected) -->
+    <div class="connect-gmail-overlay hidden" id="connectGmailOverlay">
+        <div class="connect-gmail-modal">
+            <div class="connect-gmail-icon"><i class="fas fa-envelope-open-text"></i></div>
+            <h2>Verify Email Access</h2>
+            <p class="connect-gmail-desc">Connect your Gmail to scan your inbox with ML & NLP threat detection. Your data stays secure and is only used for scanning.</p>
+            <div class="connect-gmail-actions">
+                <button type="button" class="btn-google connect-gmail-btn" id="connectGmailModalBtn">
+                    <i class="fab fa-google"></i> Connect with Google
+                </button>
+                <button type="button" class="btn-secondary connect-gmail-skip" id="connectGmailSkipBtn">Skip for now</button>
+            </div>
+            <p class="connect-gmail-footer"><i class="fas fa-shield-alt"></i> Powered by NLP + ML threat detection</p>
+        </div>
+    </div>
+
+    <!-- Toast Notifications Container -->
+    <div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 5000;"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>

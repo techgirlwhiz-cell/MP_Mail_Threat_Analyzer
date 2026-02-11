@@ -1,0 +1,7 @@
+{
+  "email_body": "Dear customer, your account has been flagged for suspicious activity. Please verify your account immediately by clicking the link below to avoid suspension. http://account-verify.example.com/login",
+  "email_subject": "Urgent: Account Verification Required",
+  "from_address": "security@example-bank.com",
+  "urls": "http://account-verify.example.com/login"
+}
+

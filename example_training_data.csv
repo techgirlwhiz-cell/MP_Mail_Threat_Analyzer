@@ -1,0 +1,13 @@
+email_body,email_subject,from_address,urls,label
+"Dear User, Your Netflix subscription could not be renewed due to a billing issue. Please update your payment details to avoid service interruption: http://netflix-billing-update.example/login","Payment Issue With Your Subscription","support@netflix-billing.example","http://netflix-billing-update.example/login",1
+"Your monthly bank statement for September is now available. Please log in to your secure account to view it.","Your Monthly Bank Statement Is Ready","noreply@trustedbank.com","https://secure.trustedbank.com/statements",0
+"Congratulations! You have been selected to receive a free gift card. Confirm your details now at www.freegift-rewards.ga to claim your reward.","You've Been Selected! Claim Your Gift","rewards@freegift-rewards.ga","www.freegift-rewards.ga",1
+"Your package has been delivered successfully. Thank you for shopping with us. View delivery details here.","Package Delivered Successfully","updates@courierservice.com","https://track.courierservice.com/delivery/99821",0
+"Security Alert: We detected suspicious activity on your Apple ID. Verify your account immediately to prevent suspension: http://appleid-secure-check.example","Apple ID Security Alert","apple-security@appleid-secure-check.example","http://appleid-secure-check.example",1
+"Your class timetable for the upcoming semester has been published. Please log in to the student portal to review your schedule.","Semester Timetable Available","registrar@university.edu","https://portal.university.edu/timetable",0
+"You are eligible for a tax refund. Submit your information now to receive your payment faster: www.tax-refund-now.tk","Tax Refund Notification","refunds@tax-refund-now.tk","www.tax-refund-now.tk",1
+"This is a reminder that your electricity bill is due on October 5. View your bill or make a payment online.","Electricity Bill Due Reminder","billing@powercompany.com","https://customers.powercompany.com/billing",0
+"Your WhatsApp account has been flagged for unusual activity. Confirm your phone number to restore access: http://whatsapp-verification.example","WhatsApp Account Verification Required","support@whatsapp-verification.example","http://whatsapp-verification.example",1
+"Thank you for registering for the cybersecurity workshop. Event details and materials can be accessed using the link below.","Workshop Registration Confirmed","events@techhub.org","https://events.techhub.org/workshop-access",0
+
+

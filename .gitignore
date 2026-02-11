@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Secrets and local config (use gmail_config.json.template as reference)
+gmail_config.json
+.env
+.env.local
+*.pem
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local runtime data (optional: remove these lines if you want to commit sample data)
+flagged_emails/*.json
+user_profiles/*.json
+simulated_inboxes/*.json
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ML artifacts (optional: commit if you want to share a trained model)
+# *.pkl
