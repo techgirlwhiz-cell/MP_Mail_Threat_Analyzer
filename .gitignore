@@ -26,6 +26,7 @@ Thumbs.db
 flagged_emails/*.json
 user_profiles/*.json
 simulated_inboxes/*.json
+.tldextract_cache/
 
 # IDE
 .idea/

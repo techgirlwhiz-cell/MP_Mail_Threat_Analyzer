@@ -8,6 +8,29 @@ import os
 os.environ.setdefault('OAUTHLIB_INSECURE_TRANSPORT', '1')
 # Allow scope order/difference from Google (e.g. openid added, different order)
 os.environ.setdefault('OAUTHLIB_RELAX_TOKEN_SCOPE', '1')
+# Use project-local cache for tldextract to avoid "Operation not permitted" on ~/.cache (macOS)
+_project_dir = os.path.dirname(os.path.abspath(__file__))
+os.environ.setdefault('TLDEXTRACT_CACHE', os.path.join(_project_dir, '.tldextract_cache'))
+
+import json as _json
+# On Render (or any host): create gmail_config.json from env if missing (so no secrets in repo)
+_gmail_config_path = os.path.join(_project_dir, 'gmail_config.json')
+if not os.path.exists(_gmail_config_path):
+    _cid = os.environ.get('GMAIL_CLIENT_ID', '').strip()
+    _csec = os.environ.get('GMAIL_CLIENT_SECRET', '').strip()
+    if _cid and _csec:
+        _base = os.environ.get('RENDER_EXTERNAL_URL', 'http://localhost:5001').strip().rstrip('/')
+        _redirect = f"{_base}/api/auth/google/callback"
+        with open(_gmail_config_path, 'w') as f:
+            _json.dump({
+                'client_id': _cid,
+                'client_secret': _csec,
+                'project_id': os.environ.get('GMAIL_PROJECT_ID', 'mailthreat-analyzer'),
+                'auth_uri': 'https://accounts.google.com/o/oauth2/auth',
+                'token_uri': 'https://oauth2.googleapis.com/token',
+                'redirect_uris': [_redirect]
+            }, f, indent=4)
+        print("[Config] Created gmail_config.json from env")
 
 from flask import Flask, jsonify, request, send_from_directory, session
 from flask_cors import CORS
@@ -424,18 +447,31 @@ def google_callback():
         return _oauth_success_page(link_flow=False, token=token, email=email, full_name=full_name, role=role_esc)
     
     except Exception as e:
+        err_str = str(e).lower()
+        # Network/connectivity to Google blocked or unavailable
+        if 'connection refused' in err_str or 'max retries exceeded' in err_str or 'oauth2.googleapis.com' in err_str:
+            return _oauth_error_page(
+                'Cannot reach Google (connection refused). Sign in with email/password below, or check: '
+                'internet connection, firewall/VPN blocking HTTPS to Google, or try another network.',
+                status_code=503,
+                show_login_link=True
+            )
         return _oauth_error_page(f'OAuth failed: {str(e)}', status_code=500)
 
 
-def _oauth_error_page(message, status_code=400):
-    """Return an HTML error page with a link back to dashboard."""
+def _oauth_error_page(message, status_code=400, show_login_link=False):
+    """Return an HTML error page with a link back to dashboard or login."""
     msg_esc = message.replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;')
+    links = '<p><a href="/login.html">Sign in with email / password</a></p><p><a href="/index.html">Return to Dashboard</a></p>'
+    if not show_login_link:
+        links = '<p><a href="/index.html">Return to Dashboard</a></p>'
     html = f'''<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Gmail connection failed</title>
-<style>body{{font-family:system-ui,sans-serif;max-width:480px;margin:60px auto;padding:24px;text-align:center;}}
-.error{{color:#b91c1c;margin:16px 0;}} a{{color:#7c3aed;}}</style></head>
+<html><head><meta charset="utf-8"><title>Connection failed</title>
+<style>body{{font-family:system-ui,sans-serif;max-width:520px;margin:60px auto;padding:24px;text-align:center;}}
+.error{{color:#b91c1c;margin:16px 0;}} a{{color:#7c3aed;}} .tip{{margin-top:20px;font-size:0.95rem;color:#555;}}</style></head>
 <body><h1>Connection failed</h1><p class="error">{msg_esc}</p>
-<p><a href="/index.html">Return to Dashboard</a></p></body></html>'''
+{links}
+<p class="tip">If you see this after &quot;Sign in with Google&quot;, your network may be blocking access to Google. Use email/password to sign in.</p></body></html>'''
     return html, status_code, {'Content-Type': 'text/html; charset=utf-8'}
 
 
@@ -564,28 +600,14 @@ def get_dashboard_stats():
 @app.route('/api/dashboard/recent-threats', methods=['GET'])
 @require_auth
 def get_recent_threats():
-    """Get recent threats detected (from real Gmail scan or simulator)."""
+    """Get recent threats detected. Prefer live simulator list when present so dashboard matches Flagged tab."""
     try:
         current_user = request.user_email
-        if current_user not in REAL_GMAIL_FLAGGED:
-            loaded = _load_flagged_from_disk(current_user)
-            if loaded:
-                REAL_GMAIL_FLAGGED[current_user] = loaded
-        threats = []
-        if current_user in REAL_GMAIL_FLAGGED:
-            raw = REAL_GMAIL_FLAGGED[current_user]
-            recent = raw[-5:] if len(raw) > 5 else raw
-            for email in reversed(recent):
-                threats.append({
-                    'id': email.get('id'),
-                    'subject': email.get('subject', 'No Subject'),
-                    'sender': email.get('sender', 'Unknown'),
-                    'score': int(round((email.get('score') or 0) * 100)),
-                    'time': email.get('time') or format_time_ago(email.get('received_at'))
-                })
-        else:
-            flagged = addon.gmail_simulator.get_flagged_emails(current_user)
+        # Prefer live simulator list so new flags show on both dashboard and Flagged tab
+        flagged = addon.gmail_simulator.get_flagged_emails(current_user)
+        if flagged:
             recent = flagged[-5:] if len(flagged) > 5 else flagged
+            threats = []
             for email in reversed(recent):
                 score = 70
                 try:
@@ -602,6 +624,24 @@ def get_recent_threats():
                     'score': score,
                     'time': format_time_ago(email.get('flagged_at'))
                 })
+            return jsonify({'success': True, 'data': threats})
+        # No simulator flagged: use persisted (REAL_GMAIL_FLAGGED / disk)
+        if current_user not in REAL_GMAIL_FLAGGED:
+            loaded = _load_flagged_from_disk(current_user)
+            if loaded:
+                REAL_GMAIL_FLAGGED[current_user] = loaded
+        threats = []
+        if current_user in REAL_GMAIL_FLAGGED:
+            raw = REAL_GMAIL_FLAGGED[current_user]
+            recent = raw[-5:] if len(raw) > 5 else raw
+            for email in reversed(recent):
+                threats.append({
+                    'id': email.get('id'),
+                    'subject': email.get('subject', 'No Subject'),
+                    'sender': email.get('sender', 'Unknown'),
+                    'score': int(round((email.get('score') or 0) * 100)),
+                    'time': email.get('time') or format_time_ago(email.get('received_at'))
+                })
         return jsonify({'success': True, 'data': threats})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -611,10 +651,48 @@ def get_recent_threats():
 # Flagged Emails API Endpoints
 # ============================================
 
+def _sort_flagged_newest_first(emails):
+    """Sort flagged email list so newest (by flagged_at or received_at) is first."""
+    def sort_key(e):
+        t = e.get('flagged_at') or e.get('received_at') or e.get('time') or ''
+        return (t if isinstance(t, str) else str(t)) or '0'
+    emails.sort(key=sort_key, reverse=True)
+    return emails
+
+
+def _simulator_flagged_to_api_format(flagged_list):
+    """Convert simulator flagged email dicts to API response format (list of email dicts)."""
+    emails = []
+    for email in flagged_list:
+        flag_reason = email.get('flag_reason', '')
+        score = 70
+        if 'score:' in flag_reason:
+            try:
+                score_str = flag_reason.split('score:')[1].split(')')[0].strip()
+                score = int(float(score_str) * 100)
+            except Exception:
+                pass
+        time_val = email.get('received_at', datetime.now().isoformat())
+        if isinstance(time_val, str) and len(time_val) > 16:
+            time_val = time_val[:16].replace('T', ' ')
+        emails.append({
+            'id': email.get('id'),
+            'subject': email.get('subject', 'No Subject'),
+            'sender': email.get('sender', 'Unknown'),
+            'threatType': 'Phishing',
+            'score': score,
+            'time': time_val,
+            'received_at': time_val,
+            'flagged_at': email.get('flagged_at', ''),
+            'body': (email.get('body', '') or '')[:200] + '...'
+        })
+    return emails
+
+
 @app.route('/api/flagged-emails', methods=['GET'])
 @require_auth
 def get_flagged_emails():
-    """Get all flagged emails for the current user (persistent record with received date)."""
+    """Get all flagged emails for the current user. Merge live simulator list with persisted so new flags show."""
     try:
         current_user = request.user_email
         # Load from disk if not in memory (e.g. after server restart)
@@ -622,7 +700,17 @@ def get_flagged_emails():
             loaded = _load_flagged_from_disk(current_user)
             if loaded:
                 REAL_GMAIL_FLAGGED[current_user] = loaded
-        # Real Gmail flagged (from memory or disk)
+        # Always get live simulator list so newly flagged emails show on Flagged tab
+        simulator_flagged = addon.gmail_simulator.get_flagged_emails(current_user)
+        if simulator_flagged:
+            # Simulator has flagged emails: use as source of truth so Flagged tab matches dashboard
+            emails = _simulator_flagged_to_api_format(simulator_flagged)
+            _sort_flagged_newest_first(emails)
+            # Keep persisted store in sync so we have them after restart
+            if len(simulator_flagged) > len(REAL_GMAIL_FLAGGED.get(current_user, [])):
+                _persist_simulator_flagged(current_user)
+            return jsonify({'success': True, 'data': emails})
+        # No simulator flagged: use persisted (REAL_GMAIL_FLAGGED / disk)
         if current_user in REAL_GMAIL_FLAGGED:
             raw = REAL_GMAIL_FLAGGED[current_user]
             emails = []
@@ -648,34 +736,9 @@ def get_flagged_emails():
                     'flagged_at': flagged_at,
                     'body': (e.get('body') or '')[:200] + ('...' if len(e.get('body') or '') > 200 else '')
                 })
+            _sort_flagged_newest_first(emails)
             return jsonify({'success': True, 'data': emails})
-        # Fallback: simulator flagged emails
-        flagged = addon.gmail_simulator.get_flagged_emails(current_user)
-        emails = []
-        for email in flagged:
-            flag_reason = email.get('flag_reason', '')
-            score = 70
-            if 'score:' in flag_reason:
-                try:
-                    score_str = flag_reason.split('score:')[1].split(')')[0].strip()
-                    score = int(float(score_str) * 100)
-                except Exception:
-                    pass
-            time_val = email.get('received_at', datetime.now().isoformat())
-            if isinstance(time_val, str) and len(time_val) > 16:
-                time_val = time_val[:16].replace('T', ' ')
-            emails.append({
-                'id': email.get('id'),
-                'subject': email.get('subject', 'No Subject'),
-                'sender': email.get('sender', 'Unknown'),
-                'threatType': 'Phishing',
-                'score': score,
-                'time': time_val,
-                'received_at': time_val,
-                'flagged_at': email.get('flagged_at', ''),
-                'body': (email.get('body', '') or '')[:200] + '...'
-            })
-        return jsonify({'success': True, 'data': emails})
+        return jsonify({'success': True, 'data': []})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -770,6 +833,52 @@ def _extract_urls_from_body(text):
     return list(set(re.findall(url_pattern, text)))
 
 
+def _scan_inbox_simulator_result(current_user):
+    """Run simulator scan and optionally seed if empty. Returns (result_dict, error_str or None)."""
+    result = addon.scan_inbox(current_user, auto_flag=True)
+    if result.get('error'):
+        return None, result['error']
+    if result.get('total_scanned', 0) == 0:
+        addon.add_sample_emails(current_user, count=15, phishing_ratio=0.4)
+        result = addon.scan_inbox(current_user, auto_flag=True)
+        if result.get('error'):
+            return None, result['error']
+    return result, None
+
+
+def _persist_simulator_flagged(current_user):
+    """Save simulator flagged emails to REAL_GMAIL_FLAGGED and disk so Flagged Emails page shows them."""
+    flagged = addon.gmail_simulator.get_flagged_emails(current_user)
+    now_iso = datetime.now().isoformat()
+    records = []
+    for email in flagged:
+        flag_reason = email.get('flag_reason', '')
+        score = 0.7
+        if 'score:' in flag_reason:
+            try:
+                score = float(flag_reason.split('score:')[1].split(')')[0].strip())
+            except Exception:
+                pass
+        received_at = email.get('received_at', now_iso)
+        time_str = received_at[:16].replace('T', ' ') if isinstance(received_at, str) and len(received_at) > 16 else str(received_at)[:16]
+        flagged_at = email.get('flagged_at', now_iso)
+        records.append({
+            'id': email.get('id'),
+            'subject': email.get('subject', 'No Subject'),
+            'sender': email.get('sender', 'Unknown'),
+            'body': (email.get('body') or '')[:500],
+            'threat_type': 'Phishing',
+            'score': score,
+            'time': time_str,
+            'received_at': received_at,
+            'flagged_at': flagged_at,
+            'risk_factors': [],
+            'recommendations': [],
+        })
+    REAL_GMAIL_FLAGGED[current_user] = records
+    _save_flagged_to_disk(current_user, records)
+
+
 @app.route('/api/scan/inbox', methods=['POST'])
 @require_auth
 def scan_inbox():
@@ -786,18 +895,48 @@ def scan_inbox():
             try:
                 client.authenticate_with_token(refresh_token)
             except Exception as e:
-                print(f"[SCAN] Gmail auth failed: {e}")
-                return jsonify({'success': False, 'error': f'Gmail auth failed: {str(e)}'}), 401
+                print(f"[SCAN] Gmail auth failed: {e}, falling back to simulator")
+                result, err = _scan_inbox_simulator_result(current_user)
+                if err:
+                    return jsonify({'success': False, 'error': f'Gmail auth failed. {err}'}), 400
+                _persist_simulator_flagged(current_user)
+                return jsonify({
+                    'success': True,
+                    'data': {
+                        'totalScanned': result['total_scanned'],
+                        'threatsFound': result['threats_found'],
+                        'threatRate': result['threat_rate'] * 100,
+                        'source': 'simulated',
+                        'fallbackReason': 'Gmail sign-in expired or was revoked. Connect Gmail again in Settings to scan your real inbox.'
+                    }
+                })
             try:
                 raw_messages = client.get_messages(max_results=100)
             except Exception as e:
                 err_str = str(e).lower()
-                if '403' in err_str and ('gmail api' in err_str or 'accessnotconfigured' in err_str or 'not been used' in err_str or 'disabled' in err_str):
+                is_permission_error = (
+                    '403' in err_str or 'permitted' in err_str or 'insufficient' in err_str
+                    or 'forbidden' in err_str or 'access not configured' in err_str
+                    or 'not been used' in err_str or 'disabled' in err_str
+                )
+                print(f"[SCAN] Gmail API error: {e}, fallback to simulator (is_permission_error={is_permission_error})")
+                result, err = _scan_inbox_simulator_result(current_user)
+                if err:
                     return jsonify({
                         'success': False,
-                        'error': 'Gmail API is not enabled. Go to: https://console.cloud.google.com/apis/library/gmail.googleapis.com?project=70121931776 → click ENABLE. Wait 1–2 minutes, then try Scan again.'
+                        'error': 'Gmail access was denied or not enabled. Enable Gmail API at: https://console.cloud.google.com/apis/library/gmail.googleapis.com'
                     }), 403
-                return jsonify({'success': False, 'error': f'Could not load Gmail: {str(e)[:200]}'}), 500
+                _persist_simulator_flagged(current_user)
+                return jsonify({
+                    'success': True,
+                    'data': {
+                        'totalScanned': result['total_scanned'],
+                        'threatsFound': result['threats_found'],
+                        'threatRate': result['threat_rate'] * 100,
+                        'source': 'simulated',
+                        'fallbackReason': 'Gmail could not be accessed (permission or API not enabled). Scanned sample inbox instead. Connect Gmail in Settings to scan your real inbox.'
+                    }
+                })
             print(f"[SCAN] Gmail returned {len(raw_messages)} messages")
             profile = addon.addon_manager.get_profile(current_user)
             if not profile:
@@ -882,18 +1021,12 @@ def scan_inbox():
 
         # No Gmail token: use simulator + ML/NLP (existing flow)
         print(f"[SCAN] Using simulator (no refresh token)")
-        result = addon.scan_inbox(current_user, auto_flag=True)
-        if result.get('error'):
-            print(f"[SCAN] Simulator error: {result['error']}")
-            return jsonify({'success': False, 'error': result['error']}), 400
+        result, err = _scan_inbox_simulator_result(current_user)
+        if err:
+            print(f"[SCAN] Simulator error: {err}")
+            return jsonify({'success': False, 'error': err}), 400
         print(f"[SCAN] Simulator: scanned={result.get('total_scanned', 0)} threats={result.get('threats_found', 0)}")
-        # If inbox was empty, seed sample emails and scan again so user sees results
-        if result.get('total_scanned', 0) == 0:
-            addon.add_sample_emails(current_user, count=15, phishing_ratio=0.4)
-            result = addon.scan_inbox(current_user, auto_flag=True)
-            if result.get('error'):
-                return jsonify({'success': False, 'error': result['error']}), 400
-            print(f"[SCAN] After seed: scanned={result.get('total_scanned')} threats={result.get('threats_found')}")
+        _persist_simulator_flagged(current_user)
         return jsonify({
             'success': True,
             'data': {

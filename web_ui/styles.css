@@ -1707,6 +1707,18 @@ input:checked + .toggle-slider:before {
     color: #4285F4;
 }
 
+.google-tip {
+    margin-top: 10px;
+    font-size: 0.8rem;
+    color: var(--text-gray);
+    line-height: 1.4;
+}
+
+.google-tip strong {
+    color: var(--primary-purple);
+    font-weight: 600;
+}
+
 .error-message {
     margin-top: 20px;
     padding: 12px 16px;

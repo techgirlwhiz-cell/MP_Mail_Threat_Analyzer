@@ -39,7 +39,15 @@ In the Web Service → **Environment** tab, add:
 | Key | Value | Required |
 |-----|--------|----------|
 | `SECRET_KEY` | A random string (e.g. `python -c "import secrets; print(secrets.token_hex(32))"`) | Yes |
-| `RENDER_EXTERNAL_URL` | Your app URL, e.g. `https://mailthreat-analyzer.onrender.com` | Yes (for Gmail OAuth) |
+| `RENDER_EXTERNAL_URL` | Your app URL, e.g. `https://mailthreat-analyzer.onrender.com` | Yes (for OAuth and Gmail) |
+
+**For Google Sign-In / Gmail (optional):** If you set these, the app will create `gmail_config.json` at startup so you don't need to commit secrets:
+
+| Key | Value |
+|-----|--------|
+| `GMAIL_CLIENT_ID` | Your Google OAuth client ID (e.g. `xxx.apps.googleusercontent.com`) |
+| `GMAIL_CLIENT_SECRET` | Your Google OAuth client secret |
+| `GMAIL_PROJECT_ID` | Optional; default `mailthreat-analyzer` |
 
 Optional (if you use Supabase for auth):
 
@@ -60,9 +68,7 @@ Optional (if you use Supabase for auth):
    https://YOUR-RENDER-URL.onrender.com/api/auth/google/callback
    ```
    (Replace with your actual Render URL.)
-3. Your app expects a `gmail_config.json` in the project root with `client_id` and `client_secret`. On Render you have two options:
-   - **Option A:** Add the file to the repo (not ideal for secrets).  
-   - **Option B:** Create `gmail_config.json` at runtime from env vars using a **build or start script**, or add a small piece of code in `web_backend.py` that reads `GMAIL_CLIENT_ID` and `GMAIL_CLIENT_SECRET` from the environment and writes the file (or builds the config in memory) before starting the server. For now, ensure `gmail_config.json` is present in the repo or generated at deploy/start.
+3. **Gmail config on Render:** Set environment variables `GMAIL_CLIENT_ID` and `GMAIL_CLIENT_SECRET` (and `RENDER_EXTERNAL_URL`). The app creates `gmail_config.json` at startup from these, so you don't need to commit the file.
 
 ---
 

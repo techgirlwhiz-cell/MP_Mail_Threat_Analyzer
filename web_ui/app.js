@@ -793,9 +793,12 @@ async function handleScanNow() {
         if (response && response.success) {
             await loadDashboardData();
             const src = response.data.source === 'gmail' ? 'Gmail' : 'sample inbox';
-            const msg = response.data.totalScanned === 0
+            let msg = response.data.totalScanned === 0
                 ? `Scan complete. No emails in ${src}. ${response.data.source === 'gmail' ? 'Check your inbox or try reconnecting Gmail.' : ''}`
                 : `Scan completed! Found ${response.data.threatsFound} threats in ${response.data.totalScanned} emails.`;
+            if (response.data.fallbackReason) {
+                msg += ' ' + response.data.fallbackReason;
+            }
             showNotification(msg, 'success');
         } else {
             const errMsg = (response && response.error) ? response.error : 'Scan failed. Please try again.';
