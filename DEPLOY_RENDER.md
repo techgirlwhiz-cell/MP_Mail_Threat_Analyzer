@@ -24,10 +24,12 @@ This guide walks you through deploying the web app (Flask + static UI) as a **We
      ```bash
      pip install -r requirements.txt
      ```
-   - **Start Command:**
+   - **Start Command:** (must use Render's `PORT` or the app will never respond)
      ```bash
-     gunicorn --bind 0.0.0.0:$PORT web_backend:app
+     bash render_start.sh
      ```
+     Or manually: `gunicorn --bind 0.0.0.0:$PORT web_backend:app`  
+     The repo includes `render_start.sh` so the server always binds to `$PORT`.
    - **Instance type:** Free (or paid if you need more memory for ML dependencies).
 
 ---
@@ -109,12 +111,12 @@ The repo includes a `render.yaml` that describes the Web Service. To use it:
 - **Build fails (e.g. timeout or out of memory)**  
   Some dependencies (e.g. `sentence-transformers`, `shap`) are heavy. If the build fails, you can try removing or making them optional in `requirements.txt` for the Render build, or use a paid instance with more memory.
 
-- **502 Bad Gateway**  
-  Ensure the start command is exactly:
+- **502 Bad Gateway / Loading forever ("service waking up")**  
+  The server must listen on the port Render provides. Use the start command:
   ```bash
-  gunicorn --bind 0.0.0.0:$PORT web_backend:app
+  bash render_start.sh
   ```
-  and that `web_backend.py` exposes the Flask app as `app`.
+  This script runs `gunicorn --bind 0.0.0.0:${PORT} web_backend:app` so the app responds to HTTP. If you don't use `$PORT`, Render can't reach your app and the page will load indefinitely.
 
 - **Gmail OAuth “Redirect URI mismatch”**  
   Confirm the redirect URI in Google Cloud Console is exactly:

@@ -8,7 +8,7 @@ services:
     region: oregon
 
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn --bind 0.0.0.0:$PORT web_backend:app
+    startCommand: bash render_start.sh
 
     envVars:
       - key: PYTHON_VERSION
