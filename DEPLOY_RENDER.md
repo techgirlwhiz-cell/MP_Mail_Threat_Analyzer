@@ -20,17 +20,16 @@ This guide walks you through deploying the web app (Flask + static UI) as a **We
    - **Region:** Choose one (e.g. Oregon).
    - **Branch:** `main` (or your default branch).
    - **Runtime:** **Python 3**.
-   - **Build Command:**
+   - **Build Command:** (use the lighter file so the free-tier build succeeds)
      ```bash
-     pip install -r requirements.txt
+     pip install -r requirements-render.txt
      ```
+     To use full ML (sentence-transformers, SHAP) use `requirements.txt` and a **paid** instance.
    - **Start Command:** (must use Render's `PORT` or the app will never respond)
      ```bash
      bash render_start.sh
      ```
-     Or manually: `gunicorn --bind 0.0.0.0:$PORT web_backend:app`  
-     The repo includes `render_start.sh` so the server always binds to `$PORT`.
-   - **Instance type:** Free (or paid if you need more memory for ML dependencies).
+   - **Instance type:** Free (or paid if you use full `requirements.txt`).
 
 ---
 
@@ -106,7 +105,22 @@ The repo includes a `render.yaml` that describes the Web Service. To use it:
 
 ---
 
-## 8. Troubleshooting
+## 8. Check that the app is up
+
+After deploy, open:
+
+- **https://your-service.onrender.com/health**  
+  You should see `{"status":"ok","service":"mailthreat-analyzer"}`. If this loads, the server is listening on `PORT` and Flask is running.
+- **https://your-service.onrender.com/login.html**  
+  Login page.
+
+If `/health` never loads, check **Logs** in the Render dashboard:
+- **Build logs:** Did `pip install -r requirements-render.txt` finish? If the build fails or times out, use `requirements-render.txt` (not `requirements.txt`) on the free tier.
+- **Service logs:** Do you see `Listening on 0.0.0.0:XXXX`? If not, the start command may be wrong or the app may be crashing on import (check for Python tracebacks).
+
+---
+
+## 9. Troubleshooting
 
 - **Build fails (e.g. timeout or out of memory)**  
   Some dependencies (e.g. `sentence-transformers`, `shap`) are heavy. If the build fails, you can try removing or making them optional in `requirements.txt` for the Render build, or use a paid instance with more memory.

@@ -1295,6 +1295,16 @@ def update_settings():
 
 
 # ============================================
+# Health check (for Render / load balancers)
+# ============================================
+
+@app.route('/health')
+def health():
+    """Return 200 so Render knows the service is up."""
+    return jsonify({'status': 'ok', 'service': 'mailthreat-analyzer'}), 200
+
+
+# ============================================
 # Serve Static Files (must be last so /api/* routes match first)
 # ============================================
 
