@@ -53,12 +53,31 @@ except Exception:
     supabase_sign_in = None
     SUPABASE_AUTH_AVAILABLE = False
 
-app = Flask(__name__, static_folder='web_ui', static_url_path='')
+# Static folder: use absolute path so it works when cwd differs (e.g. on Render)
+_static_dir = os.path.join(_project_dir, 'web_ui')
+if not os.path.isdir(_static_dir):
+    _static_dir = 'web_ui'  # fallback relative
+app = Flask(__name__, static_folder=_static_dir, static_url_path='')
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 CORS(app, supports_credentials=True)  # Enable CORS for all routes
 
-# Initialize the Gmail add-on
-addon = GmailAddonIntegration()
+# Initialize the Gmail add-on (catch init errors so app can start; /health and static files still work)
+addon = None
+try:
+    addon = GmailAddonIntegration()
+except Exception as e:
+    print(f"[STARTUP] GmailAddonIntegration failed: {e}")
+    import traceback
+    traceback.print_exc()
+
+@app.before_request
+def _check_addon():
+    """Return 503 for API routes if addon failed to load (so we don't crash the worker)."""
+    if addon is not None:
+        return None
+    if request.path.startswith('/api/') and request.path != '/health':
+        return jsonify({'success': False, 'error': 'Service initializing. Check server logs for startup errors.'}), 503
+    return None
 
 # In-memory user store (replace with database in production)
 # Format: { email: { password_hash, role, full_name, created_at, ... } }
